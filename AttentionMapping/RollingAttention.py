@@ -46,20 +46,22 @@ def get_rolling_heatmaps_from_model(feature_extractor, model, image: Image.Image
     rolling_attention_heatmap(attentions=attentions, image=image, size=size, layers=layers)
 
 def rolling_heatmaps_all_layer(feature_extractor, model, image: Image.Image, size:tuple[int] = (224, 224)) -> None:
+    """Only use in notebooks"""
     inputs = feature_extractor(images=image, return_tensors="pt")
     outputs = model(**inputs, output_attentions=True, return_dict=True)
     attentions = outputs.attentions
     print("output class probabilities:")
     print(nn.functional.softmax(outputs.logits[0], dim=0).detach().numpy())
     
-    fig, ax = plt.subplots(1, len(attentions)+1, figsize=(20,20))
     resize = Resize(size)
     image = resize(image)
-    ax[0].imshow(image)
-    ax[0].set_title("original image")
+    plt.imshow(image)
+    plt.title("original image")
+    plt.show()
     for layer in range(len(attentions)):
         attention_map = rolling_attention_map(attentions, size, layer+1)
-        ax[layer+1].imshow(image)
-        ax[layer+1].imshow(attention_map, cmap='viridis', alpha=0.5)
-        ax[layer+1].set_title(str(layer+1))
+        plt.imshow(image)
+        plt.imshow(attention_map, cmap='viridis', alpha=0.5)
+        plt.title(f"layer: {layer+1}")
+        plt.show()
     plt.show()
