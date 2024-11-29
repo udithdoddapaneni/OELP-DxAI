@@ -116,7 +116,7 @@ class GradCAM():
         heatmap = heatmap/heatmap.max()
         heatmap = np.array(resize(heatmap.detach().numpy(), final_shape))
 
-        heatmap_colored = cm.jet(heatmap)[:, :, :3]
+        heatmap_colored = cm.viridis(heatmap)[:, :, :3] # can be changed
         heatmap_colored = np.uint8(255*heatmap_colored)
 
         image = np.array(resize(image, final_shape))
