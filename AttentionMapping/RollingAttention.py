@@ -5,10 +5,13 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
+from cv2 import addWeighted
+import matplotlib.cm as cm
+
 
 def rolling_attention_map(attentions:Iterable[torch.Tensor], size:tuple[int] = (224,224), layers:int|None = None) -> np.ndarray:
     rolling_attention = torch.eye(attentions[0].shape[-1]).to(attentions[0].device) # shape: tokens, tokens
-    if layers == None:
+    if layers == -1:
         layers = len(attentions)
     for idx, attention in enumerate(attentions):
         if idx == layers:
@@ -37,7 +40,20 @@ def rolling_attention_heatmap(attentions:Iterable[torch.Tensor], image: Image.Im
     plt.colorbar(label='Attention Intensity')
     plt.show()
 
-def get_rolling_heatmaps_from_model(feature_extractor, model, image: Image.Image, size:tuple[int] = (224, 224), layers=None) -> None:
+def return_rolling_heatmap(feature_extractor, model, image: Image.Image, size:tuple[int] = (224, 224), layers=None) ->None:
+    inputs = feature_extractor(images=image, return_tensors="pt")
+    outputs = model(**inputs, output_attentions=True, return_dict=True)
+    attentions = outputs.attentions
+    attention_map = rolling_attention_map(attentions=attentions, size=size, layers=layers)
+    resize = Resize(size)
+    image = np.array(resize(image))
+    heatmap = cm.viridis(attention_map)[:, :, :3]
+    heatmap = np.uint8(255*heatmap)
+    alpha = 0.5
+    blended_image = addWeighted(heatmap, alpha, image, 1 - alpha, 0)
+    return Image.fromarray(blended_image), outputs.logits
+
+def get_rolling_heatmaps_from_model(feature_extractor, model, image: Image.Image, size:tuple[int] = (224, 224), layers=-1) -> None:
     inputs = feature_extractor(images=image, return_tensors="pt")
     outputs = model(**inputs, output_attentions=True, return_dict=True)
     attentions = outputs.attentions

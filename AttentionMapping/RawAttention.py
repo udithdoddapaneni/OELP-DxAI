@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
+from cv2 import addWeighted
+import matplotlib.cm as cm
 
 def raw_attention_map(attentions:Iterable[torch.Tensor], layer:int = -1, size:tuple[int] = (224,224)) -> np.ndarray:
     avg_attention = attentions[layer].mean(dim=1).squeeze(0).detach().numpy()
@@ -27,6 +29,19 @@ def raw_attention_heatmap(attentions:Iterable[torch.Tensor], image: Image.Image,
     plt.imshow(attention_map, cmap='viridis', alpha=0.5)
     plt.colorbar(label='Attention Intensity')
     plt.show()
+
+def return_raw_heatmap(feature_extractor, model, image: Image.Image, size:tuple[int] = (224, 224), layer=-1) ->None:
+    inputs = feature_extractor(images=image, return_tensors="pt")
+    outputs = model(**inputs, output_attentions=True, return_dict=True)
+    attentions = outputs.attentions
+    attention_map = raw_attention_map(attentions=attentions, size=size, layer=layer)
+    resize = Resize(size)
+    image = np.array(resize(image))
+    heatmap = cm.viridis(attention_map)[:, :, :3]
+    heatmap = np.uint8(255*heatmap)
+    alpha = 0.5
+    blended_image = addWeighted(heatmap, alpha, image, 1 - alpha, 0)
+    return Image.fromarray(blended_image), outputs.logits
 
 def get_rawheat_maps_from_model(feature_extractor, model, image: Image.Image, layer:int = -1, size:tuple[int] = (224, 224)) -> None:
     inputs = feature_extractor(images=image, return_tensors="pt")

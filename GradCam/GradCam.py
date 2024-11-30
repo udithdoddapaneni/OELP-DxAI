@@ -125,6 +125,47 @@ class GradCAM():
         self.heatmap = Image.fromarray(blended_image)
         return self.heatmap
     
+    def gradCAM_heatmapAUTOLABEL_withLogits(self, preprocessor: Callable, im: Image.Image | np.ndarray | torch.Tensor, final_shape: tuple = (512,512)) -> Image.Image:
+        if final_shape[0] != final_shape[1]:
+            raise Exception('final dimensions must be equal')
+        self.Model.eval()
+        if isinstance(im, np.ndarray):
+            im = Image.fromarray(im)
+            im = im.convert("RGB")
+        elif isinstance(im, torch.Tensor):
+            im = im.detach().numpy()
+            im = Image.fromarray(im)
+            im = im.convert("RGB")
+        else:
+            im = im.convert("RGB")
+        im = np.array(im)
+        image = im
+        im: torch.Tensor = preprocessor(im)
+        im = im.to(self.device)
+        
+        activations = self.get_activations(im)
+        output: torch.Tensor = self.Model(im)
+        label = output[0].argmax()
+        print("output_probabilities:")
+        print(output[0])
+        output[0][label].backward()
+        activation_gradients = self.get_activation_gradients()
+        averaged_gradients = torch.mean(activation_gradients, dim=(0,2,3))
+        for i in range(len(averaged_gradients)):
+            activations[:, i, :, :] *= averaged_gradients[i]
+        heatmap = torch.mean(activations, dim=(0,1))
+        heatmap = heatmap/heatmap.max()
+        heatmap = np.array(resize(heatmap.detach().numpy(), final_shape))
+
+        heatmap_colored = cm.viridis(heatmap)[:, :, :3] # can be changed
+        heatmap_colored = np.uint8(255*heatmap_colored)
+
+        image = np.array(resize(image, final_shape))
+        alpha = 0.4
+        blended_image = addWeighted(heatmap_colored, alpha, image, 1 - alpha, 0)
+        self.heatmap = Image.fromarray(blended_image)
+        return self.heatmap, output
+    
     def showHeatMap(self):
         self.heatmap.show()
 
