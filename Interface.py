@@ -79,7 +79,7 @@ def LoadImage(filepath:str):
 CNN_MODEL = Model(lr=0.001)
 CNN_MODEL.to(device)
 def LoadModel(CNN_MODEL:Model):
-    CNN_MODEL.load_state_dict(torch.load("GradCam/weights.pth"))
+    CNN_MODEL.load_state_dict(torch.load("GradCam/weights.pth", map_location=device))
 LoadModel(CNN_MODEL)
 
 feature_extractor = ViTFeatureExtractor.from_pretrained("google/vit-base-patch16-224-in21k")
